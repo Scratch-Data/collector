@@ -1,0 +1,15 @@
+{
+  "name": "collect",
+  "version": "1.0.0",
+  "dependencies": {
+    "@types/level": "^6.0.0",
+    "entities": "^3.0.1",
+    "fastify": "^3.20.2",
+    "level": "^7.0.0",
+    "mustache": "^4.2.0",
+    "node-fetch": "^2.6.1",
+    "node-html-parser": "^4.1.3",
+    "p-throttle": "^4.1.1",
+    "short-numbers": "0.1.1"
+  }
+}
