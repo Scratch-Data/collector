@@ -6,12 +6,12 @@ const shn = require("short-numbers");
 const { render: m } = require("mustache");
 const { decodeHTML } = require("entities");
 const { fastify } = require("fastify");
-const db = require("level")("comments");
+// const db = require("level")("comments");
 const pThrottle = require("p-throttle");
 const users = require("./users.json").slice(0, 100);
 
 const throttle = pThrottle({
-  limit: 5,
+  limit: 15,
   interval: 1000,
 });
 
@@ -32,7 +32,7 @@ const template = fs.readFileSync("web.mustache").toString();
  * }[]} Comments
  */
 
-function parseCommentsToHTML(html) {
+function parseCommentsFromHTML(html) {
   const root = HTMLParser.parse(html);
   const commentElements = root.querySelectorAll("div.comment");
   return commentElements.map((commentElement) => {
@@ -66,16 +66,26 @@ async function processUser(user) {
     const res = await concurrentFetch(
       `https://scratch.mit.edu/site-api/comments/user/${user}?page=${page}`
     );
-    if (res.status === 404) {
-      break; // Looks like there are no more pages left!
+    if ([404, 429, 503].includes(res.status)) {
+      break;
     }
     if (!res.ok) {
       throw new Error(`Expected 404 or 2XX, got ${res.status}.`);
     }
     // eslint-disable-next-line no-await-in-loop
-    const html = await res.text();
-    const comments = parseCommentsToHTML(html);
+    let html = await res.text();
+    let comments = parseCommentsFromHTML(html);
+    html = null;
     collected = collected.concat(comments);
+    // let ops = comments.map((comment) => ({
+    //   type: "put",
+    //   key: comment.id,
+    //   value: JSON.stringify(comment),
+    // }));
+    // eslint-disable-next-line no-await-in-loop
+    // await db.batch(ops);
+    comments = null;
+    // ops = null;
     page += 1;
   }
 }
@@ -91,7 +101,12 @@ server.get("/", (_req, res) => {
   res.send(m(template, { count: shn(collected.length) }));
 });
 
-server.listen(3000).then((address) => {
+server.get("/data", (_req, res) => {
+  res.type("application/json");
+  res.send(JSON.stringify(collected));
+});
+
+server.listen(3000, "0.0.0.0").then((address) => {
   console.log(`Server is listening on ${address}!`);
 });
 
